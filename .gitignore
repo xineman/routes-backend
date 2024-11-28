@@ -24,5 +24,9 @@ go.work.sum
 # System
 .DS_Store
 
-# Dist
+# Dist and temporary builds
 dist/
+tmp/
+
+# Static files
+static/
