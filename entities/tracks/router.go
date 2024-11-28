@@ -2,14 +2,8 @@ package tracks
 
 import (
 	"fmt"
-	"io"
-	"mime/multipart"
 	"net/http"
-	"os"
-	"path/filepath"
-	"strings"
 	"sync"
-	"time"
 
 	"github.com/labstack/echo/v4"
 )
@@ -37,7 +31,14 @@ func TrackRouter(group *echo.Group) {
 		name := c.FormValue("name")
 		fileName := getTrackFileName(track.Filename, name)
 
-		go saveFile(*track, fileName)
+		go func() {
+			err := createStaticFolderIfNotExist("tracks")
+			if err != nil {
+				fmt.Println("Could not create static folder", err)
+			} else {
+				saveFile(*track, fileName)
+			}
+		}()
 		newTrack, err := saveTrack(TrackMetadata{name, fileName})
 		if err != nil {
 			fmt.Println("saveTrack error:", err)
@@ -63,7 +64,12 @@ func TrackRouter(group *echo.Group) {
 			fmt.Println("Start job")
 			go func() {
 				defer wg.Done()
-				errors <- saveFile(*file, "")
+				err := createStaticFolderIfNotExist("tracks")
+				if err != nil {
+					errors <- err
+				} else {
+					errors <- saveFile(*file, "")
+				}
 			}()
 		}
 
@@ -86,42 +92,4 @@ func TrackRouter(group *echo.Group) {
 
 		return c.JSON(http.StatusOK, Response{Success: true, Message: message})
 	})
-}
-
-func getTrackFileName(fileName string, trackName string) string {
-	slug := strings.ReplaceAll(trackName, " ", "-")
-	extension := filepath.Ext(fileName)
-	if len(extension) > 0 {
-		extension = extension[1:]
-	}
-	return fmt.Sprintf("%v-%v.%s", slug, time.Now().UnixMilli(), extension)
-}
-
-func saveFile(file multipart.FileHeader, name string) error {
-	fmt.Println("Processing file:", file.Filename)
-	time.Sleep(time.Second * 2)
-	src, err := file.Open()
-	if err != nil {
-		fmt.Println("Open error:", err)
-		return err
-	}
-	defer src.Close()
-
-	fileName := name
-	if name == "" {
-		fileName = fmt.Sprintf("%v-%v", time.Now().UnixMilli(), fileName)
-	}
-	dst, err := os.Create(filepath.Join("static/tracks", fileName))
-	if err != nil {
-		fmt.Println("Create error:", err, fileName)
-		return err
-	}
-	defer dst.Close()
-
-	if _, err = io.Copy(dst, src); err != nil {
-		fmt.Println("Copy error:", err, fileName)
-		return err
-	}
-	fmt.Println("Saved file:", fileName)
-	return nil
 }
