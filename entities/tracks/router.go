@@ -2,16 +2,26 @@ package tracks
 
 import (
 	"fmt"
+	"mime/multipart"
 	"net/http"
 	"sync"
 
 	"github.com/labstack/echo/v4"
+	"github.com/xineman/go-server/utils"
 )
 
-type Response struct {
-	Success bool   `json:"success"`
-	Message string `json:"message,omitempty"`
-}
+type (
+	Response struct {
+		Success bool   `json:"success"`
+		Message string `json:"message,omitempty"`
+	}
+
+	CreateTrack struct {
+		Name   string `form:"name"`
+		Track  *multipart.FileHeader
+		Photos []*multipart.FileHeader
+	}
+)
 
 func TrackRouter(group *echo.Group) {
 	group.GET("", func(c echo.Context) error {
@@ -23,25 +33,22 @@ func TrackRouter(group *echo.Group) {
 	})
 
 	group.POST("", func(c echo.Context) error {
-		track, err := c.FormFile("track")
-		if err != nil {
-			fmt.Println("FormFile error:", err)
+		var createTrackDto CreateTrack
+
+		if err := c.Bind(&createTrackDto); err != nil {
+			fmt.Println("Could not bind data", err)
 			return err
 		}
-		name := c.FormValue("name")
-		fileName := getTrackFileName(track.Filename, name)
-
-		go func() {
-			err := createStaticFolderIfNotExist("tracks")
-			if err != nil {
-				fmt.Println("Could not create static folder", err)
-			} else {
-				saveFile(*track, fileName)
-			}
-		}()
-		newTrack, err := saveTrack(TrackMetadata{name, fileName})
+		form, err := c.MultipartForm()
 		if err != nil {
-			fmt.Println("saveTrack error:", err)
+			fmt.Println("MultipartForm error:", err)
+			return err
+		}
+		createTrackDto.Track = form.File["track"][0]
+		createTrackDto.Photos = form.File["photos"]
+
+		newTrack, err := processTrack(createTrackDto)
+		if err != nil {
 			return err
 		}
 
@@ -64,11 +71,11 @@ func TrackRouter(group *echo.Group) {
 			fmt.Println("Start job")
 			go func() {
 				defer wg.Done()
-				err := createStaticFolderIfNotExist("tracks")
+				err := utils.CreateStaticFolderIfNotExist("tracks")
 				if err != nil {
 					errors <- err
 				} else {
-					errors <- saveFile(*file, "")
+					errors <- utils.SaveFile(*file, fmt.Sprintf("tracks/%s", file.Filename))
 				}
 			}()
 		}

@@ -17,6 +17,7 @@ type Track struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 	Name      string    `json:"name"`
 	FileName  string    `json:"fileName"`
+	Photos    []string  `json:"photos"`
 }
 
 type TrackMetadata struct {
@@ -25,17 +26,22 @@ type TrackMetadata struct {
 }
 
 func getTracks() ([]Track, error) {
-	sql, _, _ := sq.Select("*").From("tracks").ToSql()
+	sql, _, _ := sq.Select(
+		"tracks.id, tracks.created_at, updated_at, name, tracks.file_name, array_remove(array_agg(photos.file_name), null) as photo_file_name",
+	).From("tracks").LeftJoin("photos on photos.track_id = tracks.id").GroupBy("tracks.id").ToSql()
 	rows, err := db.DbPool.Query(context.Background(), sql)
 	if err != nil {
+		fmt.Println(err, sql)
 		return nil, err
 	}
 	var tracks []Track
 	for rows.Next() {
 		var track Track
-		if err := rows.Scan(&track.Id, &track.CreatedAt, &track.UpdatedAt, &track.Name, &track.FileName); err != nil {
+		if err := rows.Scan(&track.Id, &track.CreatedAt, &track.UpdatedAt, &track.Name, &track.FileName, &track.Photos); err != nil {
+			fmt.Println(err)
 			return nil, err
 		}
+
 		tracks = append(tracks, track)
 	}
 	for _, t := range tracks {
