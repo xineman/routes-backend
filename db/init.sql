@@ -10,5 +10,5 @@ create table photos (
   id          serial primary key,
   created_at  timestamp not null default now(),
   file_name   text not null UNIQUE,
-  track_id    integer REFERENCES tracks
+  track_id    integer not null REFERENCES tracks
 )

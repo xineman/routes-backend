@@ -47,3 +47,14 @@ func SaveFile(file multipart.FileHeader, fullName string) error {
 	fmt.Println("Saved file:", fullName)
 	return nil
 }
+
+func DeleteFile(fileName string) error {
+	fmt.Printf("Deleting file: %s\n", fileName)
+	err := os.Remove(fileName)
+	if err != nil {
+		fmt.Printf("Could not delete file: %s\n", fileName)
+	} else {
+		fmt.Printf("Deleted file: %s\n", fileName)
+	}
+	return err
+}

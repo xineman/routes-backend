@@ -1,0 +1,103 @@
+definitions:
+  tracks.Track:
+    properties:
+      createdAt:
+        type: string
+      fileName:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      photos:
+        items:
+          type: string
+        type: array
+      updatedAt:
+        type: string
+    type: object
+info:
+  contact: {}
+  title: Swagger Example API
+  version: "2.0"
+paths:
+  /tracks:
+    delete:
+      consumes:
+      - application/json
+      operationId: delete-track
+      parameters:
+      - description: Track ID
+        in: query
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+          schema: {}
+      summary: Delete track
+      tags:
+      - Tracks
+    get:
+      consumes:
+      - application/json
+      operationId: get-all-tracks
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/tracks.Track'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema: {}
+      summary: Get all tracks
+      tags:
+      - Tracks
+    post:
+      consumes:
+      - application/json
+      operationId: create-track
+      parameters:
+      - description: GPX track file
+        in: formData
+        name: track
+        required: true
+        type: file
+      - collectionFormat: csv
+        description: Track photos
+        in: formData
+        items:
+          type: file
+        name: photos
+        required: true
+        type: array
+      - description: Track name
+        in: formData
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/tracks.Track'
+        "500":
+          description: Internal Server Error
+          schema: {}
+      summary: Save a new track
+      tags:
+      - Tracks
+swagger: "2.0"

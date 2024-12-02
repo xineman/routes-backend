@@ -1,4 +1,4 @@
-package photos
+package repo
 
 import (
 	"context"

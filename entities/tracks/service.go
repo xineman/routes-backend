@@ -7,7 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/xineman/go-server/entities/photos"
+	ph "github.com/xineman/go-server/entities/photos/repo"
+	tr "github.com/xineman/go-server/entities/tracks/repo"
 	"github.com/xineman/go-server/utils"
 )
 
@@ -16,20 +17,20 @@ type PhotoResult struct {
 	fileName string
 }
 
-func processTrack(createTrackDto CreateTrack) (Track, error) {
+func processTrack(createTrackDto CreateTrack) (tr.Track, error) {
 	fileName := getTrackFileName(createTrackDto.Track.Filename, createTrackDto.Name)
 
-	newTrack, err := saveTrack(TrackMetadata{createTrackDto.Name, fileName})
+	newTrack, err := tr.SaveTrack(tr.TrackMetadata{createTrackDto.Name, fileName})
 	if err != nil {
 		fmt.Println("saveTrack error:", err)
-		return Track{}, err
+		return tr.Track{}, err
 	}
 
 	go saveTrackFiles(createTrackDto, newTrack)
 	return newTrack, nil
 }
 
-func saveTrackFiles(createTrackDto CreateTrack, track Track) {
+func saveTrackFiles(createTrackDto CreateTrack, track tr.Track) {
 	err := utils.CreateStaticFolderIfNotExist("tracks")
 	if err != nil {
 		fmt.Println("Could not create static folder", err)
@@ -57,7 +58,7 @@ func saveTrackFiles(createTrackDto CreateTrack, track Track) {
 			defer wg.Done()
 			fileName := getPhotoFileName(photo.Filename)
 			err := utils.SaveFile(*photo, fmt.Sprintf("images/%s", fileName))
-			photoResults <- PhotoResult{err, photo.Filename}
+			photoResults <- PhotoResult{err, fileName}
 		}()
 	}
 	go func() {
@@ -75,7 +76,7 @@ func saveTrackFiles(createTrackDto CreateTrack, track Track) {
 		}
 	}
 
-	photos.SavePhotos(track.Id, successfulPhotos)
+	ph.SavePhotos(track.Id, successfulPhotos)
 	if len(failedPhotos) > 0 {
 		fmt.Println("Some photos could not be saved:")
 		for _, message := range failedPhotos {
@@ -102,4 +103,16 @@ func getPhotoFileName(fileName string) string {
 		extension = extension[1:]
 	}
 	return fmt.Sprintf("%v-%v.%s", slug, time.Now().UnixMilli(), extension)
+}
+
+func delete(id int) error {
+	track, err := tr.GetTrack(id)
+	if err != nil {
+		return err
+	}
+	go utils.DeleteFile(filepath.Join("static/tracks", track.FileName))
+	for _, ph := range track.Photos {
+		go utils.DeleteFile(filepath.Join("static/images", ph))
+	}
+	return tr.DeleteTrack(id)
 }
